@@ -1,0 +1,77 @@
+# Portable local stack for Legion CBT.
+#
+# This is the run path for machines without a local Postgres/Redis. It brings up
+# PostgreSQL 16, Redis 7, and the Laravel app (FrankenPHP/Octane-ready image), then
+# runs migrations on start. Matches the data stores in docs/02-system-architecture.md.
+#
+#   docker compose up --build
+#   docker compose exec app php artisan migrate --force
+#
+# The app container reads DB/Redis host from the env below, overriding .env so the
+# same .env works for both local-native and containerized runs.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: legion_cbt
+      POSTGRES_USER: legion
+      POSTGRES_PASSWORD: legion_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U legion -d legion_cbt"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]   # AOF: durable enough for the response write-buffer
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: local
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: legion_cbt
+      DB_USERNAME: legion
+      DB_PASSWORD: legion_secret
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    # Wait for DB, migrate, then serve. In production this split into web/worker/ws roles
+    # (docs/02 §2); for local dev one process is enough.
+    command: >
+      sh -c "php artisan migrate --force &&
+             php artisan serve --host=0.0.0.0 --port=8000"
+
+volumes:
+  pgdata:
+  redisdata:
