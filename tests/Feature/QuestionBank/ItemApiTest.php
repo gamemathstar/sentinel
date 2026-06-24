@@ -34,9 +34,11 @@ class ItemApiTest extends TestCase
     {
         [, $admin] = $this->tenantAndAdmin();
         $headers = $this->authHeaders($admin);
+        $bank = $this->makeBank();
 
         $create = $this->postJson('/api/question-bank/items', [
             'type' => 'single',
+            'question_bank_id' => $bank->id,
             'content' => ['stem' => 'HTTP Q?', 'options' => ['a' => '1', 'b' => '2']],
             'answer' => ['correct' => ['b']],
         ], $headers);
@@ -63,9 +65,11 @@ class ItemApiTest extends TestCase
         $this->actingForTenant($inst);
         $student = $this->makeUser($inst);
         $this->grantRole($student, 'student'); // no question-bank permissions
+        $bank = $this->makeBank();
 
         $this->postJson('/api/question-bank/items', [
             'type' => 'single',
+            'question_bank_id' => $bank->id,
             'content' => ['stem' => 'x', 'options' => ['a' => '1', 'b' => '2']],
             'answer' => ['correct' => ['a']],
         ], $this->authHeaders($student))->assertStatus(403);

@@ -7,7 +7,10 @@ use App\Modules\Authoring\Exceptions\PublishValidationFailed;
 use App\Modules\Authoring\Models\Assessment;
 use App\Modules\Authoring\Models\AssessmentSection;
 use App\Modules\Authoring\Models\Blueprint;
+use App\Modules\Identity\Models\User;
 use App\Modules\QuestionBank\Models\ItemVersion;
+use App\Modules\QuestionBank\Services\BankVisibilityResolver;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use RuntimeException;
@@ -20,7 +23,11 @@ use RuntimeException;
  */
 class AssessmentService
 {
-    public function __construct(private readonly PaperAssembler $assembler) {}
+    public function __construct(
+        private readonly PaperAssembler $assembler,
+        private readonly BankVisibilityResolver $bankVisibility,
+        private readonly TenantContext $tenant,
+    ) {}
 
     public function create(array $attributes): Assessment
     {
@@ -78,7 +85,14 @@ class AssessmentService
     {
         $this->assertEditable($section->assessment);
 
-        $versionIds = $this->assembler->assemble($blueprint);
+        // Restrict the draw to banks the assembling author may read (unless they manage all).
+        $allowedBankIds = null;
+        $userId = $this->tenant->userId();
+        if ($userId && ($user = User::find($userId)) && ! $this->bankVisibility->canManageAll($user)) {
+            $allowedBankIds = $this->bankVisibility->readableBankIds($user);
+        }
+
+        $versionIds = $this->assembler->assemble($blueprint, $allowedBankIds);
         $this->pinItemVersions($section, $versionIds);
 
         $section->selection = ['source' => 'blueprint', 'blueprint_id' => $blueprint->id, 'count' => count($versionIds)];

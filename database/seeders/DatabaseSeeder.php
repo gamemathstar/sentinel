@@ -2,24 +2,20 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
-     * Seed the application's database.
+     * Seed the application's database with an explorable end-to-end demo.
+     *
+     * NOTE: the default skeleton seeded a User via the generic factory; that is removed
+     * because our `users` schema (password_hash / full_name) differs. The DemoSeeder
+     * exercises the real domain services instead — events fire, so proctoring sessions
+     * and certificates are produced exactly as they would be in production.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $this->call(DemoSeeder::class);
     }
 }

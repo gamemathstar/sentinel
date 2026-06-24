@@ -56,7 +56,6 @@ class ScoringService
         $rule = $assessment->scoring_rule_id ? ScoringRule::findOrFail($assessment->scoring_rule_id) : null;
         $policy = ($rule ?? new ScoringRule(['policy' => []]))->toPolicy();
 
-        $answers = $this->responses->latestAnswers($sitting);
         $analysis = $this->analyzeSitting($sitting);
 
         $questions = [];
@@ -64,12 +63,13 @@ class ScoringService
 
         foreach ($analysis as $ivId => $info) {
             if (! $info['objective']) {
-                if (array_key_exists($ivId, $answers)) {
+                // Open-ended items are excluded from the objective auto-score and routed
+                // to manual/AI grading; the score stays under_review until they reconcile.
+                if ($this->openGradingTask($sitting, $ivId, $info['type'])) {
                     $needsManual = true;
-                    $this->openGradingTask($sitting, $ivId, $info['type'], $answers);
                 }
 
-                continue; // open-ended items are excluded from the objective auto-score
+                continue;
             }
             $questions[] = ['fraction' => $info['fraction'], 'weight' => $info['weight']];
         }
@@ -83,7 +83,8 @@ class ScoringService
                 'scoring_rule_version' => $rule?->version,
                 'raw_score' => $result['raw'],
                 'scaled_score' => $result['scaled'],
-                'section_breakdown' => ['objective_max' => $result['max']],
+                // objective_raw is retained so manual marks can be folded in on reconcile.
+                'section_breakdown' => ['objective_raw' => $result['raw'], 'objective_max' => $result['max']],
                 'status' => $needsManual ? 'under_review' : 'final',
             ]
         );
@@ -144,15 +145,29 @@ class ScoringService
         return $out;
     }
 
-    private function openGradingTask(Sitting $sitting, string $ivId, string $type, array $answers): void
+    /**
+     * Open (or reuse) a grading task for one open-ended item. Returns true if the item
+     * was answered and thus needs manual grading; false if it was left blank.
+     */
+    private function openGradingTask(Sitting $sitting, string $ivId, string $type): bool
     {
-        // Only create a task if the candidate actually responded.
-        if (! array_key_exists($ivId, $answers)) {
-            return;
+        // The candidate's latest response for this item (responses are partitioned, so
+        // this is a logical reference, not a hard FK).
+        $responseId = DB::table('responses')
+            ->where('sitting_id', $sitting->id)
+            ->where('item_version_id', $ivId)
+            ->orderByDesc('sequence')
+            ->value('id');
+
+        if ($responseId === null) {
+            return false; // unanswered
         }
+
         GradingTask::firstOrCreate(
-            ['sitting_id' => $sitting->id, 'response_id' => $sitting->id], // response_id is logical (responses are partitioned)
-            ['type' => $type, 'status' => 'pending']
+            ['sitting_id' => $sitting->id, 'item_version_id' => $ivId],
+            ['response_id' => $responseId, 'type' => $type, 'status' => 'pending']
         );
+
+        return true;
     }
 }

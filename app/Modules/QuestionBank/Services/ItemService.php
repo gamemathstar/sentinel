@@ -38,6 +38,10 @@ class ItemService
             $item = Item::create([
                 'type' => $def['type'],
                 'status' => 'draft',
+                'question_bank_id' => $def['question_bank_id'] ?? null,
+                'course_org_node_id' => $def['course_org_node_id'] ?? null,
+                'specialization_org_node_id' => $def['specialization_org_node_id'] ?? null,
+                'tags' => $def['tags'] ?? [],
                 'difficulty' => $meta['difficulty'] ?? null,
                 'bloom_level' => $meta['bloom_level'] ?? null,
                 'expected_seconds' => $meta['expected_seconds'] ?? null,

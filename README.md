@@ -38,6 +38,13 @@ The architecture is documented in [`docs/`](docs/), read in this order:
 9. [Assessment Authoring Module](docs/09-assessment-authoring-module.md) — blueprints, scoring rules, paper assembly.
 10. [Exam Delivery & Scoring Module](docs/10-delivery-scoring-module.md) — sittings, variants, append-only responses, JIT vault scoring.
 11. [Analytics & Psychometrics Module](docs/11-analytics-psychometrics-module.md) — item stats, KR-20/α/SEM, difficulty feedback loop.
+12. [Manual / AI Grading Workflow](docs/12-grading-workflow.md) — double-marking, reconciliation, advisory AI.
+13. [Certification Module](docs/13-certification-module.md) — verifiable certificates, public portal, tamper-evidence.
+14. [Proctoring Module](docs/14-proctoring-module.md) — sessions, flags, explainable risk scoring, human review.
+15. [Reporting Module](docs/15-reporting-module.md) — PDF/Excel/CSV reports from the read models.
+16. [Notifications Module](docs/16-notifications-module.md) — idempotent multi-channel, event-driven.
+17. [Frontend (Next.js)](docs/17-frontend.md) — premium glassmorphic web client in `apps/web/`.
+18. [Question Banks & Visibility](docs/18-question-banks-and-visibility.md) — bank containers, org/shared/group privacy, course/specialization/tags.
 
 ## Quick start
 
@@ -46,6 +53,12 @@ cp .env.example .env && php artisan key:generate
 docker compose up --build        # Postgres + Redis + app, migrations run on boot
 # — or, against a local Postgres/Redis —
 createdb legion_cbt && php artisan migrate && php artisan serve
+```
+
+Seed an explorable end-to-end demo (Demo University, full exam lifecycle):
+
+```bash
+php artisan migrate:fresh --seed     # prints logins + a sample certificate token + curl examples
 ```
 
 See [docs/06-getting-started.md](docs/06-getting-started.md) for verification commands.
@@ -58,6 +71,7 @@ database/migrations/        Laravel migrations — the executable database schem
 app/ bootstrap/ config/     Laravel 12 application skeleton
 docker-compose.yml          Postgres 16 + Redis 7 + app (portable run path)
 Dockerfile                  single app image, configured per process-role via env
+apps/web/                   Next.js 16 frontend — premium glassmorphic web client
 ```
 
 As implementation proceeds, application code (models, services, APIs, `apps/web/`) is

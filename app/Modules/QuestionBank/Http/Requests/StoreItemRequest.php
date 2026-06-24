@@ -17,6 +17,11 @@ class StoreItemRequest extends FormRequest
     {
         return [
             'type' => ['required', 'string', Rule::in(Item::TYPES)],
+            'question_bank_id' => ['required', 'uuid'],
+            'course_org_node_id' => ['nullable', 'uuid'],
+            'specialization_org_node_id' => ['nullable', 'uuid'],
+            'tags' => ['sometimes', 'array'],
+            'tags.*' => ['string'],
             'content' => ['required', 'array'],
             'content.stem' => ['required', 'string'],
             'content.options' => ['sometimes', 'array'],

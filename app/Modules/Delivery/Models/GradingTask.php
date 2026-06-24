@@ -5,6 +5,7 @@ namespace App\Modules\Delivery\Models;
 use App\Support\Tenancy\HasUuidv7;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A manual/AI grading unit for an open-ended response (docs/01 §4.6, docs/03 §5).
@@ -20,10 +21,23 @@ class GradingTask extends Model
 
     protected $table = 'grading_tasks';
 
-    protected $fillable = ['sitting_id', 'response_id', 'type', 'status', 'ai_suggestion_id'];
+    protected $fillable = ['sitting_id', 'response_id', 'item_version_id', 'final_mark', 'type', 'status', 'ai_suggestion_id'];
+
+    protected $casts = ['final_mark' => 'float'];
 
     public function sitting(): BelongsTo
     {
         return $this->belongsTo(Sitting::class);
+    }
+
+    public function marks(): HasMany
+    {
+        return $this->hasMany(GradingMark::class);
+    }
+
+    /** The independent human marks recorded so far (AI marks are advisory, excluded). */
+    public function humanMarks(): HasMany
+    {
+        return $this->marks()->where('is_ai', false);
     }
 }

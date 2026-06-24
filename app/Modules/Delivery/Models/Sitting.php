@@ -70,4 +70,14 @@ class Sitting extends Model
         return $this->server_deadline_epoch !== null
             && ($nowEpoch ?? time()) > $this->server_deadline_epoch;
     }
+
+    /** Seconds left against the server deadline; null for an untimed sitting. */
+    public function remainingSeconds(?int $nowEpoch = null): ?int
+    {
+        if ($this->server_deadline_epoch === null) {
+            return null;
+        }
+
+        return max(0, $this->server_deadline_epoch - ($nowEpoch ?? time()));
+    }
 }

@@ -46,6 +46,30 @@ psql -d legion_cbt -c "INSERT INTO audit_entries(action, entry_hash) VALUES('x',
 psql -d legion_cbt -c "UPDATE audit_entries SET action='y' WHERE action='x';"   # -> ERROR: append-only
 ```
 
+## Explore the whole platform in one command
+
+```bash
+php artisan migrate:fresh --seed       # build schema + seed an end-to-end demo
+php artisan serve                      # http://localhost:8000
+```
+
+`DemoSeeder` drives the real domain services (not raw inserts), so it runs a full
+lifecycle for **Demo University**: an org tree, ~10 approved bank items (objective +
+essay), a published proctored exam, 4 candidates who sit and submit, AI proctoring flags
++ explainable risk, two-grader essay reconciliation, auto-issued certificates, and
+compiled psychometrics. The command prints logins (all users share password `password`),
+the assessment id, and a sample certificate token with ready-to-run `curl` examples:
+
+```bash
+# Public verification portal (no auth — the token is the credential)
+curl http://localhost:8000/api/certification/verify/<token>
+
+# Log in, then call protected endpoints with the bearer token
+curl -X POST http://localhost:8000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"officer@demo.legion.test","password":"password"}'
+```
+
 ## What runs today vs. what's designed
 
 | Area | Status |

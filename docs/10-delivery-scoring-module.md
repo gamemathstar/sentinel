@@ -70,6 +70,20 @@ assign (staff)  ->  start (candidate)  ->  respond* (candidate)  ->  submit (can
 | `POST /sittings/{id}/submit` | owning candidate | submit + score |
 | `GET /sittings/{id}/score` | candidate (own) / staff | view the score |
 
+## Resilience: resume after failure + extra time
+
+- **Answers are crash-durable.** Every answer is an append-only row written as the
+  candidate goes (latest sequence wins), so an internet/power failure loses nothing.
+- **Resume** (`POST /sittings/{id}/resume`, candidate) restores the paper, the candidate's
+  saved answers, and the **remaining server-authoritative time** — because the deadline is
+  an absolute server epoch, reconnecting preserves the clock rather than resetting it. The
+  reconnection is recorded in `sync_meta`.
+- **Grant extra time** (`POST /sittings/{id}/extend`, staff with `delivery.sitting.assign`)
+  extends the deadline by N minutes — for an accommodation or to compensate for an outage —
+  and **reopens a deadline that had already lapsed** (extends from now). Each grant is
+  recorded in `sync_meta.extensions[]` with reason + grantor; a submitted sitting can't be
+  extended. Verified by `ResumeAndExtendTest`.
+
 ## Events (integration seams)
 
 `SittingSubmitted` and `ScoreFinalized` are dispatched for downstream contexts

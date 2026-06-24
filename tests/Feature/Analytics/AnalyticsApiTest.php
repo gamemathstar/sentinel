@@ -41,6 +41,12 @@ class AnalyticsApiTest extends TestCase
 
         $this->getJson("/api/analytics/items/{$items[0]->id}/statistics", $headers)
             ->assertOk()->assertJsonStructure(['facility_index', 'discrimination_index', 'distractor_analysis']);
+
+        // Assessment-wide item-analysis table: one row per pinned item, with computed metrics.
+        $this->getJson("/api/analytics/assessments/{$assessment->id}/items", $headers)
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonStructure(['data' => [['item_id', 'type', 'stem', 'facility_index', 'discrimination_index', 'sample_n']]]);
     }
 
     public function test_student_cannot_compile_analytics(): void

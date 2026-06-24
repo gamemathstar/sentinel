@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+/* Enable class-based dark mode: `dark:` utilities apply under html.dark */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─────────────────────────────────────────────────────────────
+   Legion CBT — premium design system, light + dark.
+   Semantic tokens live in :root (light) and are overridden in .dark.
+   Tailwind color tokens below reference them, so utilities like
+   text-ink / text-muted / border-line / bg-bg are theme-aware.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  --bg: #f5f6fb;
+  --bg-soft: #ffffff;
+  --ink: #0d1020;
+  --muted: #565d72;
+  --faint: #8a90a2;
+  --line: rgba(15, 18, 40, 0.1);
+  --line-strong: rgba(15, 18, 40, 0.16);
+
+  --glass-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.55));
+  --glass-blur: blur(16px) saturate(160%);
+  --glass-shadow: 0 18px 50px -28px rgba(60, 50, 120, 0.4);
+
+  --aurora-opacity: 0.2;
+  --grain-opacity: 0.025;
+
+  --grad-1: #7c3aed;
+  --grad-2: #4f46e5;
+  --grad-3: #0891b2;
+}
+
+.dark {
+  --bg: #07080d;
+  --bg-soft: #0b0d15;
+  --ink: #f4f5fb;
+  --muted: #9aa0b4;
+  --faint: #6b7180;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+
+  --glass-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
+  --glass-blur: blur(18px) saturate(140%);
+  --glass-shadow: 0 18px 50px -20px rgba(99, 102, 241, 0.45);
+
+  --aurora-opacity: 0.5;
+  --grain-opacity: 0.035;
+
+  --grad-1: #c4b5fd;
+  --grad-2: #818cf8;
+  --grad-3: #38bdf8;
+}
+
+@theme {
+  --color-bg: var(--bg);
+  --color-bg-soft: var(--bg-soft);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-violet: #8b5cf6;
+  --color-indigo: #6366f1;
+  --color-sky: #38bdf8;
+  --color-cyan: #22d3ee;
+  --color-emerald: #34d399;
+  --color-amber: #fbbf24;
+  --color-rose: #fb7185;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* Aurora backdrop */
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aurora::before,
+.aurora::after {
+  content: "";
+  position: absolute;
+  width: 60vw;
+  height: 60vw;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: var(--aurora-opacity);
+}
+.aurora::before {
+  top: -20vw;
+  left: -10vw;
+  background: radial-gradient(circle, #7c3aed 0%, transparent 60%);
+}
+.aurora::after {
+  bottom: -25vw;
+  right: -10vw;
+  background: radial-gradient(circle, #0891b2 0%, transparent 60%);
+}
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Reusable surface + accent classes ── */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--line);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+.glass-hover {
+  transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+}
+.glass-hover:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow);
+}
+
+.gradient-text {
+  background: linear-gradient(100deg, var(--grad-1) 0%, var(--grad-2) 45%, var(--grad-3) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* glossy gradient button — looks great on both themes */
+.btn-aurora {
+  position: relative;
+  background: linear-gradient(100deg, #7c3aed, #6366f1 55%, #0ea5e9);
+  color: #fff;
+  box-shadow: 0 10px 30px -10px rgba(124, 58, 237, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 0.2s, box-shadow 0.3s, filter 0.2s;
+}
+.btn-aurora:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.07);
+  box-shadow: 0 16px 40px -12px rgba(124, 58, 237, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.btn-aurora:active {
+  transform: translateY(0);
+}
+
+/* gradient hairline border via mask */
+.ring-gradient {
+  position: relative;
+}
+.ring-gradient::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(120deg, rgba(139, 92, 246, 0.55), rgba(56, 189, 248, 0.45), transparent);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.text-muted { color: var(--muted); }
+.text-faint { color: var(--faint); }
+
+/* scrollbars */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+@keyframes float-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-float-in { animation: float-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }

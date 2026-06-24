@@ -102,4 +102,31 @@ class SittingApiTest extends TestCase
             'candidate_id' => $student->id,
         ], $this->authHeaders($student))->assertStatus(403);
     }
+
+    public function test_staff_can_grant_extra_time_but_candidate_cannot(): void
+    {
+        $inst = Institution::create(['name' => 'T U', 'slug' => 't-u-'.Str::random(5), 'status' => 'active']);
+        $this->actingForTenant($inst);
+        $officer = $this->makeUser($inst);
+        $this->grantRole($officer, 'exam_officer');
+        $candidate = $this->makeUser($inst);
+        $this->grantRole($candidate, 'student');
+
+        ['assessment' => $assessment] = $this->publishSimpleAssessment(1, duration: 1800);
+        $sitting = app(SittingService::class)->assign($assessment, $candidate);
+        app(SittingService::class)->start($sitting);
+
+        // Candidate may resume their own sitting.
+        $this->postJson("/api/delivery/sittings/{$sitting->id}/resume", [], $this->authHeaders($candidate))
+            ->assertOk()->assertJsonPath('sitting.status', 'in_progress');
+
+        // Candidate cannot grant themselves more time.
+        $this->postJson("/api/delivery/sittings/{$sitting->id}/extend", ['minutes' => 10], $this->authHeaders($candidate))
+            ->assertStatus(403);
+
+        // An exam officer can.
+        $this->postJson("/api/delivery/sittings/{$sitting->id}/extend", ['minutes' => 10, 'reason' => 'outage'], $this->authHeaders($officer))
+            ->assertOk()
+            ->assertJsonPath('remaining_seconds', fn ($s) => $s > 1800);
+    }
 }

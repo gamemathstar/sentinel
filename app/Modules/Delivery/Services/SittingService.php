@@ -3,6 +3,7 @@
 namespace App\Modules\Delivery\Services;
 
 use App\Modules\Authoring\Models\Assessment;
+use App\Modules\Delivery\Events\SittingStarted;
 use App\Modules\Delivery\Exceptions\DeliveryError;
 use App\Modules\Delivery\Models\Sitting;
 use App\Modules\Delivery\Models\VariantManifest;
@@ -68,6 +69,60 @@ class SittingService
             'status' => 'in_progress',
             'started_at' => $now,
             'server_deadline_epoch' => $duration ? $now->getTimestamp() + $duration : null,
+        ])->save();
+
+        SittingStarted::dispatch($sitting->id);
+
+        return $sitting;
+    }
+
+    /**
+     * Restore a sitting after a disconnect / power failure (docs/02 §7). Answers are
+     * already durable (each response is an append-only row written as the candidate goes),
+     * and the deadline is server-authoritative — so resuming preserves both the work and
+     * the remaining time. Records the reconnection for audit.
+     */
+    public function resume(Sitting $sitting): Sitting
+    {
+        if ($sitting->status === 'assigned') {
+            return $this->start($sitting); // never started — begin now
+        }
+        if (! $sitting->isInProgress()) {
+            throw new DeliveryError("Sitting is {$sitting->status}; it cannot be resumed.");
+        }
+
+        $meta = $sitting->sync_meta ?? [];
+        $meta['resumed_count'] = ($meta['resumed_count'] ?? 0) + 1;
+        $meta['last_resumed_epoch'] = Carbon::now()->getTimestamp();
+        $sitting->forceFill(['sync_meta' => $meta])->save();
+
+        return $sitting;
+    }
+
+    /**
+     * Grant additional time to a candidate — an accommodation, or to compensate for a
+     * power/internet outage. Extends the server-authoritative deadline (reopening it if it
+     * had already lapsed) and records the grant for audit. Cannot extend a finished sitting.
+     */
+    public function grantExtraTime(Sitting $sitting, int $seconds, ?string $reason = null, ?string $grantedBy = null): Sitting
+    {
+        if (! in_array($sitting->status, ['assigned', 'in_progress'], true)) {
+            throw new DeliveryError("Cannot extend a {$sitting->status} sitting.");
+        }
+        if ($seconds <= 0) {
+            throw new DeliveryError('Extra time must be positive.');
+        }
+
+        $now = Carbon::now()->getTimestamp();
+        // Add to the live deadline, or from now if it was untimed / already lapsed.
+        $from = max((int) ($sitting->server_deadline_epoch ?? $now), $now);
+
+        $meta = $sitting->sync_meta ?? [];
+        $meta['extensions'][] = ['seconds' => $seconds, 'reason' => $reason, 'by' => $grantedBy, 'at' => $now];
+
+        $sitting->forceFill([
+            'server_deadline_epoch' => $from + $seconds,
+            'sync_meta' => $meta,
         ])->save();
 
         return $sitting;

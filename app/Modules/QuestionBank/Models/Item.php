@@ -34,11 +34,13 @@ class Item extends Model
     protected $table = 'items';
 
     protected $fillable = [
-        'institution_id', 'type', 'current_version_id', 'status',
+        'institution_id', 'question_bank_id', 'course_org_node_id', 'specialization_org_node_id', 'tags',
+        'type', 'current_version_id', 'status',
         'difficulty', 'discrimination', 'bloom_level', 'expected_seconds', 'default_weight',
     ];
 
     protected $casts = [
+        'tags' => 'array',
         'difficulty' => 'float',
         'discrimination' => 'float',
         'bloom_level' => 'integer',
@@ -59,6 +61,21 @@ class Item extends Model
     public function orgNodes(): BelongsToMany
     {
         return $this->belongsToMany(OrgNode::class, 'item_org_node');
+    }
+
+    public function questionBank(): BelongsTo
+    {
+        return $this->belongsTo(QuestionBank::class);
+    }
+
+    public function course(): BelongsTo
+    {
+        return $this->belongsTo(OrgNode::class, 'course_org_node_id');
+    }
+
+    public function specialization(): BelongsTo
+    {
+        return $this->belongsTo(OrgNode::class, 'specialization_org_node_id');
     }
 
     public function isObjective(): bool

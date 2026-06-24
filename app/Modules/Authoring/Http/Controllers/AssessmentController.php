@@ -74,6 +74,22 @@ class AssessmentController extends Controller
         return response()->json(['assembled' => count($versionIds), 'item_version_ids' => $versionIds], 201);
     }
 
+    /** Pin an explicitly-curated set of item versions into a section (manual selection). */
+    public function pinItems(Request $request, string $id, string $sectionId): JsonResponse
+    {
+        $assessment = Assessment::findOrFail($id);
+        $this->authorize('update', $assessment);
+
+        $data = $request->validate([
+            'item_version_ids' => ['required', 'array', 'min:1'],
+            'item_version_ids.*' => ['uuid'],
+        ]);
+        $section = AssessmentSection::where('assessment_id', $assessment->id)->findOrFail($sectionId);
+        $this->assessments->pinItemVersions($section, $data['item_version_ids']);
+
+        return response()->json(['pinned' => count($data['item_version_ids'])], 201);
+    }
+
     public function publish(string $id): JsonResponse
     {
         $assessment = Assessment::findOrFail($id);

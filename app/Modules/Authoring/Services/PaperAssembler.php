@@ -19,21 +19,41 @@ use App\Modules\QuestionBank\Models\Item;
 class PaperAssembler
 {
     /**
+     * @param  string[]|null  $allowedBankIds  when provided, the pool is restricted to these
+     *                                         banks (the assembling author's readable banks); null = no restriction
      * @return string[] selected item_version_ids
      *
      * @throws AssemblyShortfall
      */
-    public function assemble(Blueprint $blueprint): array
+    public function assemble(Blueprint $blueprint, ?array $allowedBankIds = null): array
     {
         $c = $blueprint->constraints;
         $total = (int) $c['total'];
         $types = $c['types'] ?? null;
 
-        // Candidate pool: approved items in the tenant, of allowed types, with a pinned version.
+        // The blueprint may target specific banks; intersect with what the author may read.
+        $bankFilter = $c['bank_ids'] ?? null;
+        if ($allowedBankIds !== null) {
+            $bankFilter = $bankFilter === null
+                ? $allowedBankIds
+                : array_values(array_intersect($bankFilter, $allowedBankIds));
+        }
+        $tags = $c['tags'] ?? null;
+
+        // Candidate pool: approved items in the tenant, of allowed types, with a pinned
+        // version, optionally filtered by readable banks, course, specialization, and tags.
         $pool = Item::query()
             ->where('status', 'active')
             ->whereNotNull('current_version_id')
             ->when($types, fn ($q) => $q->whereIn('type', $types))
+            ->when($bankFilter !== null, fn ($q) => $q->whereIn('question_bank_id', $bankFilter))
+            ->when($c['course_org_node_id'] ?? null, fn ($q, $v) => $q->where('course_org_node_id', $v))
+            ->when($c['specialization_org_node_id'] ?? null, fn ($q, $v) => $q->where('specialization_org_node_id', $v))
+            ->when($tags, fn ($q) => $q->where(function ($w) use ($tags) {
+                foreach ($tags as $t) {
+                    $w->orWhereJsonContains('tags', $t);
+                }
+            }))
             ->get(['id', 'type', 'difficulty', 'current_version_id']);
 
         // No difficulty constraint: just draw `total` from the pool.

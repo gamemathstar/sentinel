@@ -15,7 +15,9 @@ use App\Modules\Delivery\Services\SittingService;
 use App\Modules\Identity\Services\AuthService;
 use App\Modules\Identity\Services\RbacProvisioner;
 use App\Modules\QuestionBank\Models\Item;
+use App\Modules\QuestionBank\Models\QuestionBank;
 use App\Modules\QuestionBank\Services\ItemService;
+use App\Modules\QuestionBank\Services\QuestionBankService;
 use App\Modules\Tenancy\Models\Institution;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
@@ -85,11 +87,18 @@ abstract class TestCase extends BaseTestCase
         return ['Authorization' => 'Bearer '.$this->tokenFor($user)];
     }
 
+    /** Create a question bank in the current tenant. */
+    protected function makeBank(string $visibility = 'restricted', ?string $ownerOrgNodeId = null): QuestionBank
+    {
+        return app(QuestionBankService::class)->create('Bank '.Str::random(5), $ownerOrgNodeId, $visibility);
+    }
+
     /** Create an approved (status=active), banded item in the current tenant for assembly tests. */
-    protected function makeApprovedItem(float $difficulty, string $type = 'single'): Item
+    protected function makeApprovedItem(float $difficulty, string $type = 'single', ?string $bankId = null): Item
     {
         $item = app(ItemService::class)->createItem([
             'type' => $type,
+            'question_bank_id' => $bankId,
             'content' => ['stem' => 'Q '.Str::random(6), 'options' => ['a' => '1', 'b' => '2']],
             'answer' => ['correct' => ['a']],
             'metadata' => ['difficulty' => $difficulty],
@@ -106,7 +115,7 @@ abstract class TestCase extends BaseTestCase
      *
      * @return array{assessment: Assessment, items: array<int, Item>}
      */
-    protected function publishSimpleAssessment(int $numItems = 2, array $policy = ['correct' => 1, 'wrong' => 0, 'blank' => 0], ?int $duration = null): array
+    protected function publishSimpleAssessment(int $numItems = 2, array $policy = ['correct' => 1, 'wrong' => 0, 'blank' => 0], ?int $duration = null, ?string $proctoringPolicyId = null): array
     {
         $items = [];
         for ($i = 0; $i < $numItems; $i++) {
@@ -116,7 +125,8 @@ abstract class TestCase extends BaseTestCase
         $rule = app(ScoringRuleService::class)->create('Rule '.Str::random(5), $policy);
         $svc = app(AssessmentService::class);
         $assessment = $svc->create([
-            'title' => 'Exam', 'kind' => 'final', 'scoring_rule_id' => $rule->id, 'duration_seconds' => $duration,
+            'title' => 'Exam', 'kind' => 'final', 'scoring_rule_id' => $rule->id,
+            'duration_seconds' => $duration, 'proctoring_policy_id' => $proctoringPolicyId,
         ]);
         $section = $svc->addSection($assessment, 'Section A');
         $svc->pinItemVersions($section, array_map(fn (Item $i) => $i->current_version_id, $items));
