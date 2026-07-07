@@ -30,7 +30,7 @@ const DEMO_DETAIL = (id: string): SittingDetail => ({
   ] },
 });
 
-export function CandidateDrawer({ sittingId, onClose, onAddTime }: { sittingId: string; onClose: () => void; onAddTime: () => void }) {
+export function CandidateDrawer({ sittingId, proctoringBase = "/proctoring", onClose, onAddTime }: { sittingId: string; proctoringBase?: string; onClose: () => void; onAddTime: () => void }) {
   const [d, setD] = useState<SittingDetail | null>(null);
 
   useEffect(() => {
@@ -89,7 +89,7 @@ export function CandidateDrawer({ sittingId, onClose, onAddTime }: { sittingId: 
                     </div>
                   ))}
                 </div>
-                <Link href={`/proctoring?focus=${risk.id}`} className="mt-3 inline-flex items-center gap-1.5 text-xs text-violet-600 dark:text-violet-300 hover:underline">
+                <Link href={`${proctoringBase}?focus=${risk.id}`} className="mt-3 inline-flex items-center gap-1.5 text-xs text-violet-600 dark:text-violet-300 hover:underline">
                   <ExternalLink className="h-3.5 w-3.5" /> Open in review console
                 </Link>
               </div>

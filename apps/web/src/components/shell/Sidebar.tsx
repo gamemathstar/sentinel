@@ -6,25 +6,21 @@ import {
   LayoutDashboard,
   Layers,
   FileCheck2,
-  Radio,
   PenLine,
-  ShieldAlert,
   BarChart3,
   Award,
-  CalendarClock,
   GraduationCap,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { cn } from "@/lib/cn";
 
+// Scheduling, Live monitor and Proctoring now live inside an assessment's workspace
+// (/assessments/[id]/…), so they're reached by opening an assessment rather than top-level.
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/assessments", label: "Assessments", icon: FileCheck2 },
-  { href: "/exams", label: "Live Exams", icon: Radio },
-  { href: "/scheduling", label: "Scheduling", icon: CalendarClock },
   { href: "/banks", label: "Question Banks", icon: Layers },
   { href: "/grading", label: "Grading", icon: PenLine },
-  { href: "/proctoring", label: "Proctoring", icon: ShieldAlert },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/certificates", label: "Certificates", icon: Award },
 ];

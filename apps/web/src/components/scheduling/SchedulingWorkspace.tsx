@@ -3,31 +3,32 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import {
-  CalendarClock, ChevronDown, Wand2, Plus, Building2, Users, MapPin, Clock, ShieldCheck, Rocket, X, Check, UserCog, ListChecks,
+  Wand2, Plus, Building2, Users, MapPin, Clock, ShieldCheck, Rocket, X, Check, UserCog, ListChecks,
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import {
-  listAssessments, listOrgNodes, listVenues, createVenue, previewSelection, listSessions,
-  createSession, autoMap, getRoster, releaseSchedule, listUsers, assignSessionInvigilators, ApiError,
-  type AssessmentRow, type OrgNode, type Venue, type Selection, type SelectionSummary,
+  listOrgNodes, listVenues, createVenue, previewSelection, listSessions,
+  createSession, autoMap, getRoster, releaseSchedule, listStaff, assignSessionInvigilators, ApiError,
+  type OrgNode, type Venue, type Selection, type SelectionSummary,
   type SessionsView, type ExamSession, type RosterRow, type AutoMapResult, type AutoMapVenue, type StaffUser,
 } from "@/lib/api";
 import {
-  demoAssessments, demoFaculties, demoLevels, demoVenues, demoSelectionSummary, demoSessions, demoRoster, demoUsers,
+  demoFaculties, demoLevels, demoVenues, demoSelectionSummary, demoSessions, demoRoster, demoUsers,
 } from "@/lib/demo";
 import { cn } from "@/lib/cn";
 
 type Tab = "automap" | "sessions" | "roster" | "venues";
 const STRUCTURAL = ["faculty", "department", "programme"];
 const fmt = (iso: string) => new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+const isUuid = (s: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(s);
+const DEMO_HINT = "This is a demo assessment — scheduling actions here are illustrative. Open or create a real assessment to schedule candidates for real.";
 
-export default function SchedulingPage() {
-  const [assessments, setAssessments] = useState<AssessmentRow[]>(
-    demoAssessments.map((a) => ({ id: a.id, title: a.title, kind: a.kind, status: a.status })),
-  );
-  const [assessmentId, setAssessmentId] = useState(demoAssessments[0].id);
+export function SchedulingWorkspace({ assessmentId }: { assessmentId: string }) {
+  // A non-UUID id (e.g. a demo slug) has no backing record; treat the whole workspace as
+  // an illustrative demo instead of firing writes that would 404.
+  const isDemo = !isUuid(assessmentId);
   const [tab, setTab] = useState<Tab>("automap");
   const [nodes, setNodes] = useState<OrgNode[]>(demoFaculties as OrgNode[]);
   const [venues, setVenues] = useState<Venue[]>(demoVenues as Venue[]);
@@ -36,7 +37,6 @@ export default function SchedulingPage() {
   const [banner, setBanner] = useState<string | null>(null);
 
   useEffect(() => {
-    listAssessments().then((r) => { if (r.data.length) { setAssessments(r.data); setAssessmentId((id) => r.data.some((a) => a.id === id) ? id : r.data[0].id); } }).catch(() => {});
     listOrgNodes().then((r) => { const s = r.filter((n) => STRUCTURAL.includes(n.type)); if (s.length) setNodes(s); }).catch(() => {});
     listVenues().then((v) => setVenues(v)).catch(() => {});
   }, []);
@@ -47,6 +47,7 @@ export default function SchedulingPage() {
 
   async function release() {
     setBanner(null);
+    if (isDemo) { setBanner(DEMO_HINT); return; }
     try {
       const r = await releaseSchedule(assessmentId);
       setBanner(`Released ${r.released} candidate(s) into live sittings.`);
@@ -58,22 +59,12 @@ export default function SchedulingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2.5 text-3xl font-semibold tracking-tight"><CalendarClock className="h-7 w-7 text-violet-500" /> Scheduling</h1>
-          <p className="mt-1 text-sm text-muted">Select cohorts by faculty, department, programme or level — then map them into timed, venued sessions.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <select value={assessmentId} onChange={(e) => setAssessmentId(e.target.value)} className="h-10 appearance-none rounded-xl border border-line glass pl-4 pr-10 text-sm outline-none focus:border-violet-400/50">
-              {assessments.map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
-          </div>
-          <Button onClick={release}><Rocket className="h-4 w-4" /> Release to sittings</Button>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <p className="text-sm text-muted">Select cohorts by faculty, department, programme or level — then map them into timed, venued sessions.</p>
+        <Button onClick={release}><Rocket className="h-4 w-4" /> Release to sittings</Button>
       </div>
 
+      {isDemo && <p className="rounded-lg border border-amber-400/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-300">{DEMO_HINT}</p>}
       {banner && <p className="text-xs text-emerald-600 dark:text-emerald-300">{banner}</p>}
 
       <div className="flex gap-1 rounded-xl glass p-1 text-sm">
@@ -84,8 +75,8 @@ export default function SchedulingPage() {
         ))}
       </div>
 
-      {tab === "automap" && <AutoMapTab assessmentId={assessmentId} nodes={nodes} venues={venues} onMapped={() => { loadSessions(); loadRoster(); setTab("sessions"); }} />}
-      {tab === "sessions" && <SessionsTab view={sessions} assessmentId={assessmentId} venues={venues} roster={roster} onChange={() => { loadSessions(); loadRoster(); }} />}
+      {tab === "automap" && <AutoMapTab assessmentId={assessmentId} isDemo={isDemo} nodes={nodes} venues={venues} onMapped={() => { loadSessions(); loadRoster(); setTab("sessions"); }} />}
+      {tab === "sessions" && <SessionsTab view={sessions} assessmentId={assessmentId} isDemo={isDemo} venues={venues} roster={roster} onChange={() => { loadSessions(); loadRoster(); }} />}
       {tab === "roster" && <RosterTab rows={roster} />}
       {tab === "venues" && <VenuesTab venues={venues} onChange={() => listVenues().then(setVenues).catch(() => {})} />}
     </div>
@@ -94,7 +85,7 @@ export default function SchedulingPage() {
 
 /* ── Auto-map: selection → venues → start-times → distribute ── */
 
-function AutoMapTab({ assessmentId, nodes, venues, onMapped }: { assessmentId: string; nodes: OrgNode[]; venues: Venue[]; onMapped: () => void }) {
+function AutoMapTab({ assessmentId, isDemo, nodes, venues, onMapped }: { assessmentId: string; isDemo: boolean; nodes: OrgNode[]; venues: Venue[]; onMapped: () => void }) {
   const [scope, setScope] = useState<"all" | "nodes">("nodes");
   const [picked, setPicked] = useState<string[]>([]);
   const [levels, setLevels] = useState<string[]>([]);
@@ -117,8 +108,24 @@ function AutoMapTab({ assessmentId, nodes, venues, onMapped }: { assessmentId: s
   const activeVenues = Object.keys(vsel);
   const totalCapacity = times.filter(Boolean).length * activeVenues.reduce((sum, id) => sum + (vsel[id] ?? venues.find((v) => v.id === id)?.capacity ?? 0), 0);
 
+  // Illustrative result for demo assessments: distribute the previewed total across the
+  // chosen (venue × time) slots by capacity, exactly as the server would.
+  function demoResult(): AutoMapResult {
+    const slotCaps = times.filter(Boolean).flatMap(() => activeVenues.map((id) => vsel[id] ?? venues.find((v) => v.id === id)?.capacity ?? 0));
+    let remaining = summary?.total ?? 0;
+    const per = slotCaps.map((cap, i) => {
+      const seated = Math.min(cap, remaining);
+      remaining -= seated;
+      const venueId = activeVenues[i % activeVenues.length];
+      return { session_id: `demo-${i}`, name: `${venues.find((v) => v.id === venueId)?.name ?? "Venue"} · slot ${i + 1}`, seated, capacity: cap };
+    });
+    const scheduled = per.reduce((s, p) => s + p.seated, 0);
+    return { sessions_created: slotCaps.length, candidates_total: summary?.total ?? 0, scheduled, unscheduled: Math.max(0, (summary?.total ?? 0) - scheduled), total_capacity: totalCapacity, per_session: per };
+  }
+
   async function run() {
     setErr(null); setBusy(true); setResult(null);
+    if (isDemo) { setResult(demoResult()); setBusy(false); return; }
     try {
       const r = await autoMap(assessmentId, {
         selection,
@@ -257,14 +264,14 @@ function AutoMapTab({ assessmentId, nodes, venues, onMapped }: { assessmentId: s
 
 /* ── Sessions list + manual create + invigilators ── */
 
-function SessionsTab({ view, assessmentId, venues, roster, onChange }: { view: SessionsView; assessmentId: string; venues: Venue[]; roster: RosterRow[]; onChange: () => void }) {
+function SessionsTab({ view, assessmentId, isDemo, venues, roster, onChange }: { view: SessionsView; assessmentId: string; isDemo: boolean; venues: Venue[]; roster: RosterRow[]; onChange: () => void }) {
   const [adding, setAdding] = useState(false);
   const [invigSession, setInvigSession] = useState<ExamSession | null>(null);
   const [rosterSession, setRosterSession] = useState<ExamSession | null>(null);
   return (
     <div className="space-y-4">
       <div className="flex justify-end"><Button variant="glass" onClick={() => setAdding((a) => !a)}><Plus className="h-4 w-4" /> New session</Button></div>
-      {adding && <NewSessionForm assessmentId={assessmentId} venues={venues} onDone={() => { setAdding(false); onChange(); }} />}
+      {adding && <NewSessionForm assessmentId={assessmentId} isDemo={isDemo} venues={venues} onDone={() => { setAdding(false); onChange(); }} />}
       {view.sessions.length === 0 && <p className="text-center text-sm text-faint">No sessions yet — auto-map a selection or add one manually.</p>}
       <div className="grid gap-4 md:grid-cols-2">
         {view.sessions.map((s) => {
@@ -297,7 +304,7 @@ function SessionsTab({ view, assessmentId, venues, roster, onChange }: { view: S
         })}
       </div>
 
-      {invigSession && <InvigilatorDialog session={invigSession} onClose={() => setInvigSession(null)} onSaved={() => { setInvigSession(null); onChange(); }} />}
+      {invigSession && <InvigilatorDialog session={invigSession} isDemo={isDemo} onClose={() => setInvigSession(null)} onSaved={() => { setInvigSession(null); onChange(); }} />}
       {rosterSession && <SessionRosterDrawer session={rosterSession} rows={roster.filter((r) => r.session_id === rosterSession.id)} onClose={() => setRosterSession(null)} onManage={() => { setRosterSession(null); setInvigSession(rosterSession); }} />}
     </div>
   );
@@ -305,7 +312,7 @@ function SessionsTab({ view, assessmentId, venues, roster, onChange }: { view: S
 
 /* ── Invigilator assignment dialog ── */
 
-function InvigilatorDialog({ session, onClose, onSaved }: { session: ExamSession; onClose: () => void; onSaved: () => void }) {
+function InvigilatorDialog({ session, isDemo, onClose, onSaved }: { session: ExamSession; isDemo: boolean; onClose: () => void; onSaved: () => void }) {
   const [staff, setStaff] = useState<StaffUser[]>(demoUsers as StaffUser[]);
   const [picked, setPicked] = useState<Record<string, "chief" | "assistant">>(
     Object.fromEntries(session.invigilators.map((i) => [i.id, i.role === "chief" ? "chief" : "assistant"])),
@@ -314,7 +321,7 @@ function InvigilatorDialog({ session, onClose, onSaved }: { session: ExamSession
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { listUsers().then((u) => { if (u.length) setStaff(u); }).catch(() => {}); }, []);
+  useEffect(() => { listStaff().then((u) => { if (u.length) setStaff(u); }).catch(() => {}); }, []);
 
   const filtered = staff.filter((s) => `${s.full_name} ${s.email}`.toLowerCase().includes(q.toLowerCase()));
 
@@ -328,6 +335,7 @@ function InvigilatorDialog({ session, onClose, onSaved }: { session: ExamSession
 
   async function save() {
     setErr(null); setBusy(true);
+    if (isDemo) { setBusy(false); onSaved(); return; }
     try {
       await assignSessionInvigilators(session.id, Object.entries(picked).map(([user_id, role]) => ({ user_id, role })));
       onSaved();
@@ -425,13 +433,14 @@ function SessionRosterDrawer({ session, rows, onClose, onManage }: { session: Ex
   );
 }
 
-function NewSessionForm({ assessmentId, venues, onDone }: { assessmentId: string; venues: Venue[]; onDone: () => void }) {
+function NewSessionForm({ assessmentId, isDemo, venues, onDone }: { assessmentId: string; isDemo: boolean; venues: Venue[]; onDone: () => void }) {
   const [venueId, setVenueId] = useState(venues[0]?.id ?? "");
   const [starts, setStarts] = useState("");
   const [duration, setDuration] = useState(60);
   const [err, setErr] = useState<string | null>(null);
   async function save() {
     setErr(null);
+    if (isDemo) { onDone(); return; }
     try {
       await createSession(assessmentId, { venue_id: venueId || undefined, starts_at: new Date(starts).toISOString(), duration_minutes: duration });
       onDone();

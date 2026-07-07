@@ -243,6 +243,8 @@ export const getBank = (id: string) => api.get<BankDetail>(`/question-bank/banks
 export const listOrgNodes = (type?: string) =>
   api.get<OrgNode[]>(`/tenancy/org-nodes${type ? `?type=${type}` : ""}`);
 export const listUsers = () => api.get<StaffUser[]>("/iam/users");
+/** Staff only (excludes candidates/students) — for invigilator assignment. */
+export const listStaff = () => api.get<StaffUser[]>("/iam/users?role=staff");
 
 /* ── Scheduling & timetabling ── */
 

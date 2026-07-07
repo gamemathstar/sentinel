@@ -29,7 +29,7 @@ function sev(p: number) {
   return { tone: "sky" as const, text: "text-sky-600 dark:text-sky-300", bar: "from-sky-400 to-indigo-500" };
 }
 
-export default function ProctoringPage() {
+export function ProctoringConsoleView() {
   return (
     <Suspense fallback={null}>
       <ProctoringConsole />

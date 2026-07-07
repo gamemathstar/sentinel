@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
 import { motion } from "motion/react";
-import { ArrowLeft, Clock, ShieldAlert, Plus, X, CheckCircle2, Activity } from "lucide-react";
+import { Clock, ShieldAlert, Plus, X, CheckCircle2, Activity } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -22,8 +21,9 @@ function riskTone(p: number) {
   return p >= 0.8 ? "rose" : p >= 0.6 ? "amber" : "sky";
 }
 
-export default function ExamMonitorPage() {
-  const { id } = useParams<{ id: string }>();
+export function LiveMonitor({ assessmentId }: { assessmentId: string }) {
+  const id = assessmentId;
+  const proctoringBase = `/assessments/${assessmentId}/proctoring`;
   const [meta, setMeta] = useState(demoMonitor.assessment);
   const [rows, setRows] = useState<MonitorRow[]>(demoMonitor.sittings as MonitorRow[]);
   const [live, setLive] = useState(false);
@@ -58,7 +58,6 @@ export default function ExamMonitorPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/exams" className="inline-flex items-center gap-2 text-sm text-faint hover:text-ink"><ArrowLeft className="h-4 w-4" /> Live examinations</Link>
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -102,7 +101,7 @@ export default function ExamMonitorPage() {
                 </div>
                 <div className="col-span-2">
                   {r.risk
-                    ? <Link href={`/proctoring?focus=${r.risk.id}`}><Badge tone={riskTone(r.risk.cheating_probability)} className="cursor-pointer hover:brightness-110">{Math.round(r.risk.cheating_probability * 100)}% risk</Badge></Link>
+                    ? <Link href={`${proctoringBase}?focus=${r.risk.id}`}><Badge tone={riskTone(r.risk.cheating_probability)} className="cursor-pointer hover:brightness-110">{Math.round(r.risk.cheating_probability * 100)}% risk</Badge></Link>
                     : <span className="text-xs text-faint">clear</span>}
                 </div>
                 <div className="col-span-2 flex justify-end">
@@ -121,7 +120,7 @@ export default function ExamMonitorPage() {
       {!live && <p className="text-center text-xs text-faint">Demo monitor — sign in for live data.</p>}
 
       {extendId && <ExtendDialog onApply={applyExtend} onClose={() => setExtendId(null)} />}
-      {detailId && <CandidateDrawer sittingId={detailId} onClose={() => setDetailId(null)} onAddTime={() => { setExtendId(detailId); setDetailId(null); }} />}
+      {detailId && <CandidateDrawer sittingId={detailId} proctoringBase={proctoringBase} onClose={() => setDetailId(null)} onAddTime={() => { setExtendId(detailId); setDetailId(null); }} />}
     </div>
   );
 }
