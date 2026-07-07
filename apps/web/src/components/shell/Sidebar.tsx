@@ -9,6 +9,7 @@ import {
   PenLine,
   BarChart3,
   Award,
+  ShieldCheck,
   GraduationCap,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
@@ -23,6 +24,7 @@ const nav = [
   { href: "/grading", label: "Grading", icon: PenLine },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/certificates", label: "Certificates", icon: Award },
+  { href: "/roles", label: "Roles & Access", icon: ShieldCheck },
 ];
 
 export function Sidebar() {
