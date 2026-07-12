@@ -120,6 +120,61 @@ class SchedulingApiTest extends TestCase
         ], $headers)->assertStatus(422);
     }
 
+    public function test_invigilators_can_be_assigned_to_a_session(): void
+    {
+        ['inst' => $inst, 'officer' => $officer] = $this->seedCohort(1);
+        $headers = $this->authHeaders($officer);
+        ['assessment' => $assessment] = $this->publishSimpleAssessment(1);
+
+        $venue = Venue::create(['name' => 'Room 7', 'capacity' => 20]);
+        $session = $this->postJson("/api/scheduling/assessments/{$assessment->id}/sessions", [
+            'venue_id' => $venue->id, 'starts_at' => '2026-07-01T09:00:00Z', 'duration_minutes' => 60,
+        ], $headers)->assertCreated()->json();
+
+        $chief = $this->makeUser($inst);
+        $assistant = $this->makeUser($inst);
+
+        $this->postJson("/api/scheduling/sessions/{$session['id']}/invigilators", [
+            'invigilators' => [
+                ['user_id' => $chief->id, 'role' => 'chief'],
+                ['user_id' => $assistant->id, 'role' => 'assistant'],
+            ],
+        ], $headers)->assertOk()->assertJsonPath('ok', true);
+
+        $this->assertSame(2, ExamSession::find($session['id'])->invigilators()->count());
+
+        // Re-assigning is idempotent (syncWithoutDetaching) — no duplicate-key error.
+        $this->postJson("/api/scheduling/sessions/{$session['id']}/invigilators", [
+            'invigilators' => [['user_id' => $chief->id, 'role' => 'chief']],
+        ], $headers)->assertOk();
+
+        $this->assertSame(2, ExamSession::find($session['id'])->invigilators()->count());
+    }
+
+    public function test_staff_filter_excludes_candidates_from_user_list(): void
+    {
+        ['inst' => $inst, 'officer' => $officer, 'students' => $students] = $this->seedCohort(2);
+        $headers = $this->authHeaders($officer);
+
+        // Unfiltered: officer + 2 students (+ any others) are present.
+        $all = $this->getJson('/api/iam/users', $headers)->assertOk()->json();
+        $this->assertContains($officer->id, array_column($all, 'id'));
+        $this->assertContains($students[0]->id, array_column($all, 'id'));
+
+        // role=staff hides candidates — invigilator picker never shows students.
+        $staff = $this->getJson('/api/iam/users?role=staff', $headers)->assertOk()->json();
+        $staffIds = array_column($staff, 'id');
+        $this->assertContains($officer->id, $staffIds);
+        $this->assertNotContains($students[0]->id, $staffIds);
+        $this->assertNotContains($students[1]->id, $staffIds);
+
+        // role=candidate is the complement.
+        $cands = $this->getJson('/api/iam/users?role=candidate', $headers)->assertOk()->json();
+        $candIds = array_column($cands, 'id');
+        $this->assertContains($students[0]->id, $candIds);
+        $this->assertNotContains($officer->id, $candIds);
+    }
+
     public function test_student_cannot_manage_schedule(): void
     {
         ['students' => $students] = $this->seedCohort(1);
