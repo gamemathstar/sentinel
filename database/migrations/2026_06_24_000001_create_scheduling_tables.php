@@ -67,15 +67,16 @@ return new class extends Migration
             $table->index(['institution_id', 'starts_at']);
         });
 
-        // Invigilators assigned to a session — assignable now or later.
+        // Invigilators assigned to a session — assignable now or later. A plain pivot:
+        // the (session, user) pair is the key, so Eloquent's belongsToMany inserts cleanly
+        // without needing to generate a surrogate id.
         Schema::create('exam_session_invigilator', function (Blueprint $table) {
-            $table->uuid('id')->primary();
             $table->foreignUuid('exam_session_id')->constrained('exam_sessions')->cascadeOnDelete();
             $table->foreignUuid('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('role')->default('assistant'); // chief|assistant
             $table->timestamps();
 
-            $table->unique(['exam_session_id', 'user_id']);
+            $table->primary(['exam_session_id', 'user_id']);
         });
 
         // The per-candidate schedule record. One per (assessment, candidate). It links to a

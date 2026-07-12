@@ -26,6 +26,7 @@ use App\Modules\QuestionBank\Policies\QuestionBankPolicy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -66,6 +67,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Every route id in this app is a UUID. Constraining the common id params to the
+        // UUID shape means a bad path segment (e.g. a stale demo slug) 404s cleanly instead
+        // of reaching Postgres and blowing up with a 22P02 invalid-uuid cast error.
+        $uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
+        foreach (['id', 'assessmentId', 'sessionId', 'sittingId', 'itemId', 'versionId', 'userId', 'groupId', 'riskId'] as $param) {
+            Route::pattern($param, $uuid);
+        }
+
         Gate::policy(Item::class, ItemPolicy::class);
         Gate::policy(QuestionBank::class, QuestionBankPolicy::class);
         Gate::policy(Assessment::class, AssessmentPolicy::class);
